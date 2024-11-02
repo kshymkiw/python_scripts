@@ -61,8 +61,9 @@ The script should print to your terminal session
 #### Updates
 This is a work in progress script.  Things I would like to add
 1.  Ability to read in a text or csv file with multiple hosts
-2.  Ability to loop this to loop to run every `x` seconds/minutes/hours/days
-3.  Cleanup and optimize where i can
-4.  Enhance error handling
+2.  Ability to embed username and password or possibly certificate based
+3.  Ability to loop this to loop to run every `x` seconds/minutes/hours/days
+4.  Cleanup and optimize where i can
+5.  Enhance error handling
 
 [^1] Information about the [Arista eAPI](https://arista.my.site.com/AristaCommunity/s/article/arista-eapi-101)
