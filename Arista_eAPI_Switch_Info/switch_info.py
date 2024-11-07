@@ -3,6 +3,7 @@ import sys
 import os
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 
 # Configure logging
 logger = logging.getLogger()
@@ -20,14 +21,12 @@ logger.addHandler(console_handler)
 # Set default logging level to INFO (DEBUG/ERROR can also be used)
 logger.setLevel(logging.INFO)
 
-# Example Outputs
-# logger.info("This is an info message")
-# logger.error("This is an error message")
-
 # Debug to file w/ timestamps
-file_handler = logging.FileHandler('debug.log')
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logger.addHandler(file_handler)
+log_handler = RotatingFileHandler('debug.log', maxBytes=5 * 1024 * 1024, backupCount=5)
+log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# Add the log handler to logger
+logger.addHandler(log_handler)
 
 def create_server(url, username, password):
     """Create and return an RPC server object."""
