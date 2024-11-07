@@ -32,16 +32,16 @@ Or if you want to read from a file
 
     root@server:/home$ python3 switch_info.py --username FOO --password BAR /path/to/file/switches.txt
 
-The script should print to your terminal session the following
+The script should print info to your terminal session
 
     Processing the following switches: 172.16.32.15
     ----- Data for 172.16.32.15 -----
-    Hostname: houseswitch
-    Version: 4.31.5M
-    MAC Address: c0:69:11:51:24:49
+    Hostname: someswitch
+    Version: someversion
+    MAC Address: somemacaddress
     VLAN Information:
         VLAN 1 - Dynamic: 0, Unicast: 0, Multicast: 0
-        VLAN 3 - Dynamic: 25, Unicast: 0, Multicast: 0
+        VLAN 3 - Dynamic: 27, Unicast: 0, Multicast: 0
         VLAN 100 - Dynamic: 4, Unicast: 0, Multicast: 0
     Routing Information:
         Connected Routes: 0
@@ -51,6 +51,15 @@ The script should print to your terminal session the following
         OSPF External Type 1: 0
         BGP External Routes: 0
         BGP Internal Routes: 0
+
+It will also create a debug file which by default is set to informational logging.  This can be changed in the script if you desire more than informational
+
+    more debug.log
+    2024-11-07 17:37:12,145 - INFO - Processing the following switches: 172.16.32.15
+    2024-11-07 17:37:12,337 - INFO - ----- Data for 172.16.32.15 -----
+    2024-11-07 17:37:12,417 - INFO - Hostname: someswitch
+    2024-11-07 17:37:12,506 - INFO - Version: someversion
+    .......
 
 ##### Updates
 This is a work in progress script.  Things I would like to add
