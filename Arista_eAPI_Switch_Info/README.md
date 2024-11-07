@@ -30,7 +30,7 @@ Using the script is as simple as it should be.  Dwonload the script or `git clon
 
 Or if you want to read from a file
 
-    root@server:/home$ python3 switch_info.py 172.16.32.15 --username FOO --password BAR /path/to/file/switches.txt
+    root@server:/home$ python3 switch_info.py 172.16.32.15 --username FOO --password BAR --ip-file /path/to/file/switches.txt
 
 The script should print info to your terminal session
 
