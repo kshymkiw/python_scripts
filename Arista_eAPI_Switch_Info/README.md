@@ -26,11 +26,11 @@ This script uses a library [jsonrpclib](https://github.com/joshmarshall/jsonrpcl
 #### Using the script
 Using the script is as simple as it should be.  Dwonload the script or `git clone` this repository.  Once there invoke the script
 
-    root@server:/home$ python3 switch_info.py 192.168.1.1 --username FOO --password BAR
+    root@server:/home$ python3 switch_info.py 172.16.32.15 --username FOO --password BAR
 
 Or if you want to read from a file
 
-    root@server:/home$ python3 switch_info.py --username FOO --password BAR /path/to/file/switches.txt
+    root@server:/home$ python3 switch_info.py 172.16.32.15 --username FOO --password BAR /path/to/file/switches.txt
 
 The script should print info to your terminal session
 
