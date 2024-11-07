@@ -1,134 +1,170 @@
-import json
-import os
-import sys
-import argparse
 import jsonrpclib
+import sys
+import os
+import argparse
+import logging
 
-# EAPI script to print useful information about Arista Switches
+# Configure logging
+logger = logging.getLogger()
+
+# Create stream handler for readable output
+console_handler = logging.StreamHandler()
+
+# Strip timestamps and logging level for console output
+formatter = logging.Formatter('%(message)s') # Only print the message w/o extra detail
+console_handler.setFormatter(formatter)
+
+# Add console handler
+logger.addHandler(console_handler)
+
+# Set default logging level to INFO (DEBUG/ERROR can also be used)
+logger.setLevel(logging.INFO)
+
+# Example Outputs
+# logger.info("This is an info message")
+# logger.error("This is an error message")
+
+# Debug to file w/ timestamps
+file_handler = logging.FileHandler('debug.log')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+def create_server(url, username, password):
+    """Create and return an RPC server object."""
+    try:
+        server = jsonrpclib.Server(url)
+        server.runCmds(1, ["enable"])  # Can we enable ourselves?
+        return server
+    except jsonrpclib.ProtocolError as e:
+        logger.error(f"Protocol error with {url}: {e}")
+    except Exception as e:
+        logger.error(f"Error with {url}: {e}")
+    return None
 
 def getEndpoints(switchHostnames, protocol, username, password):
-    """ Check switch is up, and return information """
-    apiEndpoints ={} # mapping from hostname to API Endpoint
+    """Get API endpoints for switches."""
+    apiEndpoints = {}
     for switch in switchHostnames:
-        url = "{protocol}://{user}:{pw}@{hostname}/command-api" .format(protocol=protocol, user=username, pw=password, hostname=switch)
-        server = jsonrpclib.Server(url)
-        try:
-        # Try to enable ourselves first
-            server.runCmds(1, ["enable"])
-        except Exception as e:
-            print ("Unable to enable ourselves on this switch", e)
-            sys.exit(1)
-        apiEndpoints[switch] = server
+        url = f"{protocol}://{username}:{password}@{switch}/command-api"
+        server = create_server(url, username, password)
+        if server:
+            apiEndpoints[switch] = server
+        else:
+            logger.error(f"Skipping {switch} because of an error.")
     return apiEndpoints
 
+def getIPSfromfile(file_path):
+    """Read IPs from a txt file."""
+    try:
+        with open(file_path, 'r') as file:
+            ip_list = [line.strip() for line in file.readlines() if line.strip()]
+        return ip_list
+    except FileNotFoundError:
+        logger.error(f"File Not Found: {file_path}")
+    except Exception as e:
+        logger.error(f"Error reading the file '{file_path}': {e}")
+    return []
+
 def fetchData(switchHostnames, protocol, username, password):
-    """ Grab data from the switch """
+    """Fetch data from the switches."""
     endpointData = {}
     for switch in switchHostnames:
-        url = "{protocol}://{user}:{pw}@{hostname}/command-api" .format(protocol=protocol, user=username, pw=password, hostname=switch)
-        server = jsonrpclib.Server(url)
-        try:
-            response = server.runCmds(1, ["show hostname"] )
-            print ("Hello, my name is: ", response[0][ "hostname" ])
-            endpointData[switch] = response[0]["hostname"] # Store hostname data
+        url = f"{protocol}://{username}:{password}@{switch}/command-api"
+        server = create_server(url, username, password)
+        if not server:
+            continue
 
+        # Fetch data in batch or individual commands
+        responses = [
+            ("show hostname", "hostname"),
+            ("show version", "version"),
+            ("show mac address-table count", "mac address"),
+            ("show ip route summary", "ip route")
+        ]
+
+        # Print output for each switch
+        logger.info(f"----- Data for {switch} -----")
+        for cmd, key in responses:
             try:
-                response = server.runCmds(1, ["show version"])
-                print ("My MAC address is: ", response[0][ "systemMacAddress" ])
-                print ("My Version is: ", response[0][ "version" ])
-                endpointData[switch] = response[0]["version"] # Store Version info
-                endpointData[switch] = response[0]["systemMacAddress"] # Store Sys MAC
-
-            except jsonrpclib.ProtocolError as e:
-                print(f"Protocol error with {switch}: {e}")
-            except Exception as e:
-                print(f"An error occurred with {switch}: {e}")
-
-            try:
-                response = server.runCmds(1, ["show mac address-table count"])
-
-                # Access the vlanCounts data
-                vlan_counts = response[0]["vlanCounts"]
-
-                # Print VLAN info
-                for vlan_id, counts in vlan_counts.items():
-                    dynamic_count = counts.get("dynamic", 0)  # Default to 0 if key doesn't exist
-                    unicast_count = counts.get("unicast", 0)  # Default to 0 if it doesn't exist
-                    multicast_count = counts.get("multicast", 0)  # Default to 0 is it doesn't exist
-                    print(f"VLAN-ID {vlan_id} has {dynamic_count} dynamically learned MAC addresses, {unicast_count} learned unicast addresses and {multicast_count} multicast addresses")
-
-            except jsonrpclib.ProtocolError as e:
-                print(f"Protocol error with {switch} (show mac address-table count): {e}")
-            except Exception as e:
-                print(f"An error occurred with {switch} (show mac address-table count): {e}")
-
-            try:
-                response = server.runCmds(1, ["show ip route summary"])
-
-                # Init route_counts variable
-                # route_counts = None
-
-                # Is our response structured how we think
-                if isinstance(response, list) and len(response) > 0:
-                    first_item = response[0]
-                    # print(f"First Item: {first_item}")  # Debug line
-                    if isinstance(first_item, dict):
-                        route_counts = first_item
-
-                        # Access Our Counters
+                response = server.runCmds(1, [cmd])
+                if cmd == "show hostname":
+                    hostname = response[0].get("hostname", "Unknown")
+                    logger.info(f"Hostname: {hostname}")
+                    endpointData[switch] = hostname
+                elif cmd == "show version":
+                    version_info = response[0]
+                    version = version_info.get("version", "Unknown")
+                    system_mac = version_info.get("systemMacAddress", "Unknown")
+                    logger.info(f"Version: {version}")
+                    logger.info(f"MAC Address: {system_mac}")
+                    endpointData[switch] = {"version": version, "systemMacAddress": system_mac}
+                elif cmd == "show mac address-table count":
+                    vlan_counts = response[0].get("vlanCounts", {})
+                    if vlan_counts:
+                        logger.info(f"VLAN Information:")
+                        for vlan_id, counts in vlan_counts.items():
+                            dynamic_count = counts.get("dynamic", 0)
+                            unicast_count = counts.get("unicast", 0)
+                            multicast_count = counts.get("multicast", 0)
+                            logger.info(f"  VLAN {vlan_id} - Dynamic: {dynamic_count}, Unicast: {unicast_count}, Multicast: {multicast_count}")
+                    else:
+                        logger.info("No VLAN data available.")
+                elif cmd == "show ip route summary":
+                    route_counts = response[0] if isinstance(response[0], dict) else {}
+                    if route_counts:
+                        logger.info(f"Routing Information:")
                         connected_count = route_counts.get("connected", 0)
                         static_count = route_counts.get("static", 0)
-                        total_count = route_counts.get("totalRoutes", 0)
-                        ospf_total_count = route_counts.get("ospfTotal", 0)
-                        ospf_intra_area = route_counts.get("ospfIntraArea", 0)  # Intra Area OSPF Routes
-                        ospf_inter_area = route_counts.get("ospfInterArea", 0)  #  Inter Area OSPF Routes
-                        ospf_external_1 = route_counts.get("ospfExternal1", 0)  #  External Type1 Routes
-                        ospf_external_2 = route_counts.get("ospfExternal2", 0)  #  External Type2 Routes
-                        ospf_nssa_e1 = route_counts.get("nssaExternal1", 0)  #  NSSA External 1 Type
-                        ospf_nssa_e2 = route_counts.get("nssaExternal2", 0)  #  NSSA External 2 Type
-                        bgp_total_count = route_counts.get("bgpTotal", 0)  # Total BGP Routes
-                        bgp_external_count = route_counts.get("bgpExternal", 0)  # External BGP Route Count
-                        bgp_internal_count = route_counts.get("bgpInternal", 0)  # Internal BGP Routes
-                        isis_total = route_counts.get("isisTotal", 0)  # ISIS Total Routes
-                        isis_level1 = route_counts.get("isisLevel1", 0)  # ISIS Level1 Routes
-                        isis_level2 = route_counts.get("isisLevel2", 0)  # ISIS Level2 routes
-                        internal_routes = route_counts.get("internal", 0)  # Internal Routes
+                        internal_routes = route_counts.get("internal", 0)
+                        ospf_intra_area = route_counts.get("ospfIntraArea", 0)
+                        ospf_external_1 = route_counts.get("ospfExternal1", 0)
+                        bgp_external_count = route_counts.get("bgpExternal", 0)
+                        bgp_internal_count = route_counts.get("bgpInternal", 0)
 
-                        print(f"Switch Route Information\n")
-                        print(f"Connected Routes: {connected_count}\nStatic Routes: {static_count}\nInternal Routes: {internal_routes}\n")
-                        print(f"OSPF Routes\nIntra Area Routes: {ospf_intra_area}\nInter Area Routes: {ospf_inter_area}\nExternal Type 1's: {ospf_external_1}\nExternal Type 2's: {ospf_external_2}\nNSSA External Type 1's: {ospf_nssa_e1}\nNSSA External Type 2's: {ospf_nssa_e2}\n")
-                        print(f"BGP Routes\neBGP Routes: {bgp_external_count}\niBGP Routes: {bgp_internal_count}\nTotal BGP Routes: {bgp_total_count}\n")
-                        print(f"ISIS Routes\nLevel1 Routes: {isis_level1}\nLevel2 Routes: {isis_level2}\nTotal ISIS Routes: {isis_total}\n")
-                        print(f"Total Routes For This Switch: {total_count}")
+                        logger.info(f"  Connected Routes: {connected_count}")
+                        logger.info(f"  Static Routes: {static_count}")
+                        logger.info(f"  Internal Routes: {internal_routes}")
+                        logger.info(f"  OSPF Intra Area: {ospf_intra_area}")
+                        logger.info(f"  OSPF External Type 1: {ospf_external_1}")
+                        logger.info(f"  BGP External Routes: {bgp_external_count}")
+                        logger.info(f"  BGP Internal Routes: {bgp_internal_count}")
                     else:
-                        print(f"The first item is not a dicionary.")
-                else:
-                    print(f"Unexpected response structre {response}")
-
+                        logger.info("No route data available.")
             except jsonrpclib.ProtocolError as e:
-                print(f"Protocol error with {switch} (show ip route summary): {e}")
+                logger.error(f"Protocol error with {switch} (Command: {cmd}): {e}")
             except Exception as e:
-                print(f"An error has occured with {switch} (show ip route summary): {e}")
-
-
-        except jsonrpclib.ProtocolError as e:
-            print(f"Protocol error with {switch}: {e}")
-        except Exception as e:
-            print(f"An error occurred with {switch}: {e}")
-            sys.exit(1)
+                logger.error(f"Error fetching data from {switch} (Command: {cmd}): {e}")
     return endpointData
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description="Grab Information about Arista Switches")
-    parser.add_argument("switches", metavar="SWITCH", nargs="+", help="Hostname or IP Address of your switch")
+    parser.add_argument("switches", metavar="SWITCH", nargs="*", help="Hostname or IP Address of your switch. Alternatively, specify a txt file")
+    parser.add_argument("--ip-file", type=str, help="Path to a file containing a list of IP addresses.")
     parser.add_argument("--username", help="Username to connect", default="admin")
-    parser.add_argument("--password", help="User Password")
+    parser.add_argument("--password", help="Users Password")
     parser.add_argument("--https", help="Use HTTPS instead of HTTP", action="store_const", const="https", default="http")
 
     args = parser.parse_args()
 
-    apiEndpoints = getEndpoints(args.switches, args.https, args.username, args.password)
-    endpointData = fetchData(args.switches, args.https, args.username, args.password)
+    if args.ip_file:
+        ip_list = getIPSfromfile(args.ip_file)
+        return ip_list, args.https, args.username, args.password
+    elif args.switches:
+        return args.switches, args.https, args.username, args.password
+    else:
+        logger.error("No switches or IP addresses provided.")
+        sys.exit(1)
+
+def main():
+    switches, https, username, password = parse_args()
+
+    if switches:
+        logger.info(f"Processing the following switches: {', '.join(switches)}")
+        apiEndpoints = getEndpoints(switches, https, username, password)
+        endpointData = fetchData(switches, https, username, password)
+    else:
+        logger.error("No valid switches or IP addresses provided.")
 
 if __name__ == "__main__":
     main()
+
