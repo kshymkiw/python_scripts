@@ -1,0 +1,21 @@
+2024-11-07 17:32:20,464 - INFO - Processing the following switches: 172.16.32.15
+2024-11-07 17:32:20,483 - ERROR - Error with http://pythonn:python123@172.16.32.15/command-api: <ProtocolError for pythonn:python123@172.16.32.15/command-api: 401 Unauthorized>
+2024-11-07 17:32:20,483 - ERROR - Skipping 172.16.32.15 because of an error.
+2024-11-07 17:32:20,491 - ERROR - Error with http://pythonn:python123@172.16.32.15/command-api: <ProtocolError for pythonn:python123@172.16.32.15/command-api: 401 Unauthorized>
+2024-11-07 17:32:38,965 - INFO - Processing the following switches: 172.16.32.15
+2024-11-07 17:32:39,149 - INFO - ----- Data for 172.16.32.15 -----
+2024-11-07 17:32:39,230 - INFO - Hostname: houseswitch
+2024-11-07 17:32:39,309 - INFO - Version: 4.31.5M
+2024-11-07 17:32:39,310 - INFO - MAC Address: c0:69:11:51:24:49
+2024-11-07 17:32:39,390 - INFO - VLAN Information:
+2024-11-07 17:32:39,390 - INFO -   VLAN 1 - Dynamic: 0, Unicast: 0, Multicast: 0
+2024-11-07 17:32:39,391 - INFO -   VLAN 3 - Dynamic: 25, Unicast: 0, Multicast: 0
+2024-11-07 17:32:39,391 - INFO -   VLAN 100 - Dynamic: 4, Unicast: 0, Multicast: 0
+2024-11-07 17:32:39,488 - INFO - Routing Information:
+2024-11-07 17:32:39,489 - INFO -   Connected Routes: 0
+2024-11-07 17:32:39,489 - INFO -   Static Routes: 0
+2024-11-07 17:32:39,489 - INFO -   Internal Routes: 3
+2024-11-07 17:32:39,489 - INFO -   OSPF Intra Area: 0
+2024-11-07 17:32:39,489 - INFO -   OSPF External Type 1: 0
+2024-11-07 17:32:39,489 - INFO -   BGP External Routes: 0
+2024-11-07 17:32:39,489 - INFO -   BGP Internal Routes: 0
